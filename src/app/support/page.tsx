@@ -12,8 +12,10 @@ import {
   ArrowLeft,
   Loader2,
   Mail,
+  BookOpen,
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
+import Footer from "@/components/Footer";
 
 interface BankAccount {
   bankName: string;
@@ -90,12 +92,19 @@ export default function SupportProjectPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-slate-100">
+    <div className="min-h-screen flex flex-col bg-[#090d16] text-slate-100">
       <header className="border-b border-slate-800 bg-slate-950/70 sticky top-0 z-20 backdrop-blur">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <BrandLogo href="/" />
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/docs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs text-slate-200 transition"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+              Docs
+            </Link>
             <Link
               href="/dashboard"
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs text-slate-200 transition"
@@ -107,7 +116,7 @@ export default function SupportProjectPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-12">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-6 py-12">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <div className="w-12 h-12 rounded-2xl bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-400 mx-auto mb-4">
             <Heart className="w-6 h-6" />
@@ -315,6 +324,8 @@ export default function SupportProjectPage() {
           </div>
         )}
       </main>
+
+      <Footer />
     </div>
   );
 }

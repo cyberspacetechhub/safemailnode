@@ -66,15 +66,15 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Verify project owner account states (Active, Locked, Frozen, Email Verified, Quota)
-    const user = await User.findById(project.userId);
-    if (!user || !user.isActive) {
+    const user = await User.collection.findOne({ _id: project.userId });
+    if (!user || user.isActive === false) {
       return NextResponse.json(
         { success: false, message: "Account suspended or deactivated." },
         { status: 403, headers: corsHeaders }
       );
     }
 
-    if (user.isLocked) {
+    if (user.isLocked === true) {
       return NextResponse.json(
         {
           success: false,
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (user.isFrozen) {
+    if (user.isFrozen === true) {
       return NextResponse.json(
         {
           success: false,
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!user.isEmailVerified) {
+    if (user.isEmailVerified === false) {
       return NextResponse.json(
         {
           success: false,
@@ -114,11 +114,12 @@ export async function POST(req: NextRequest) {
       createdAt: { $gte: startOfDay },
     });
 
-    if (sentToday >= user.dailyQuota) {
+    const effectiveDailyQuota = Number(user.dailyQuota ?? 100);
+    if (sentToday >= effectiveDailyQuota) {
       return NextResponse.json(
         {
           success: false,
-          message: `Daily email limit reached (${user.dailyQuota}/day). Contact admin to increase your daily limit.`,
+          message: `Daily email limit reached (${effectiveDailyQuota}/day). Contact admin to increase your daily limit.`,
         },
         { status: 429, headers: corsHeaders }
       );

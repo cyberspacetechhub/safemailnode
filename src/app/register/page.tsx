@@ -63,7 +63,7 @@ export default function RegisterPage() {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Shedrack"
+              placeholder="Alex Morgan"
               className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-emerald-500"
             />
           </div>
