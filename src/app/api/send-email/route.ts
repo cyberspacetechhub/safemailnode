@@ -154,7 +154,8 @@ export async function POST(req: NextRequest) {
 
     const { to, subject, html, text, fromName, replyTo, cc, bcc } = body;
 
-    if (!to || !subject || (!html && !text)) {
+    const recipientList = Array.isArray(to) ? to.filter(Boolean) : [to].filter(Boolean);
+    if (!recipientList.length || !subject || (!html && !text)) {
       return NextResponse.json(
         {
           success: false,
@@ -166,9 +167,19 @@ export async function POST(req: NextRequest) {
 
     const effectiveFromName = fromName || project.defaultFromName || "Notifications";
     const effectiveReplyTo = replyTo || project.defaultReplyTo;
-    const recipientString = Array.isArray(to) ? to.join(", ") : String(to);
+    const recipientString = recipientList.join(", ");
 
     // 5. Decrypt Gmail App Password & send via Nodemailer
+    if (!project.encryptedAppPassword || !project.gmailUser) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "This project is missing Gmail credentials. Please edit the project and re-enter your Gmail address and App Password.",
+        },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
     let appPassword = "";
     try {
       appPassword = decryptSecret(project.encryptedAppPassword);
@@ -176,8 +187,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Failed to decrypt stored Gmail App Password. Please re-save your Gmail settings.",
+          message: "Failed to decrypt stored Gmail App Password. Please edit the project and re-save your Gmail settings.",
         },
         { status: 500, headers: corsHeaders }
       );
@@ -188,7 +198,7 @@ export async function POST(req: NextRequest) {
         gmailUser: project.gmailUser,
         appPassword,
         fromName: effectiveFromName,
-        to,
+        to: recipientList.length === 1 ? recipientList[0] : recipientList,
         subject,
         html,
         text,

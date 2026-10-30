@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   await connectDB();
 
   const legacy = await MailProject.collection
-    .find({ hashedApiKey: { $exists: false } })
+    .find({ $or: [{ hashedApiKey: { $exists: false } }, { hashedApiKey: "" }] })
     .toArray();
 
   if (legacy.length === 0) {

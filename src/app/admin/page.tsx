@@ -118,6 +118,10 @@ export default function AdminControlPage() {
   const [allProjects, setAllProjects] = useState<any[]>([]);
   const [allLogs, setAllLogs] = useState<any[]>([]);
 
+  // Migration
+  const [migrating, setMigrating] = useState(false);
+  const [migrateResults, setMigrateResults] = useState<{ projectId: string; name: string; rawApiKey: string }[] | null>(null);
+
   const fetchAdminData = useCallback(async () => {
     try {
       const res = await fetch(`/api/admin/users?t=${Date.now()}`, { cache: "no-store" });
@@ -325,6 +329,25 @@ export default function AdminControlPage() {
     if (!confirm(`Delete project "${name}"?`)) return;
     await fetch(`/api/admin/projects?projectId=${projectId}`, { method: "DELETE" });
     fetchAdminData();
+  };
+
+  const handleMigrateProjects = async () => {
+    setMigrating(true);
+    setFeedback(null);
+    try {
+      const res = await fetch("/api/admin/migrate-projects", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setFeedback({ type: "error", text: data.message || "Migration failed" });
+      } else if (data.migrated.length === 0) {
+        setFeedback({ type: "success", text: "No legacy projects found — all projects are up to date." });
+      } else {
+        setMigrateResults(data.migrated);
+        await fetchAdminData();
+      }
+    } finally {
+      setMigrating(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -1218,6 +1241,25 @@ export default function AdminControlPage() {
         {/* TAB 4: PLATFORM PROJECTS & LOGS OVERSIGHT */}
         {activeTab === "oversight" && (
           <div className="space-y-8">
+            {/* Legacy Migration Banner */}
+            {allProjects.some((p) => !p.apiKeyPrefix) && (
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-amber-300">Legacy projects detected</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {allProjects.filter((p) => !p.apiKeyPrefix).length} project(s) are missing API keys and cannot send emails. Run migration to generate new keys.
+                  </p>
+                </div>
+                <button
+                  onClick={handleMigrateProjects}
+                  disabled={migrating}
+                  className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-semibold text-xs transition"
+                >
+                  {migrating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  Migrate Legacy Projects
+                </button>
+              </div>
+            )}
             <div className="rounded-2xl bg-slate-900/70 border border-slate-800 overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-800 font-bold text-sm">
                 All User Gmail Configurations ({allProjects.length})
@@ -1315,6 +1357,42 @@ export default function AdminControlPage() {
           </div>
         )}
       </main>
+
+      {/* Migration Results Modal */}
+      {migrateResults && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-amber-500/40 p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                <KeyRound className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Migration Complete — Save These Keys</h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {migrateResults.length} project(s) migrated. Raw keys shown once — copy and send to each user.
+                </p>
+              </div>
+            </div>
+            <div className="space-y-3 max-h-72 overflow-y-auto mb-4">
+              {migrateResults.map((r) => (
+                <div key={r.projectId} className="p-3 rounded-xl bg-slate-950 border border-slate-800">
+                  <div className="text-xs font-semibold text-slate-300 mb-1">{r.name}</div>
+                  <code className="text-xs font-mono text-amber-400 break-all select-all">{r.rawApiKey}</code>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-amber-400/80 mb-4">
+              ⚠ Users must also re-edit their project and re-enter their Gmail App Password to restore full functionality.
+            </p>
+            <button
+              onClick={() => setMigrateResults(null)}
+              className="w-full py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-sm transition"
+            >
+              I&apos;ve copied all keys
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Reset User Password Modal */}
       {resetTargetUser && (

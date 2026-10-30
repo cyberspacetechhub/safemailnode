@@ -71,6 +71,12 @@ export async function POST(
   `;
 
   try {
+    if (!project.encryptedAppPassword) {
+      return NextResponse.json(
+        { success: false, message: "No App Password saved for this project. Please edit the project and re-enter your Gmail App Password." },
+        { status: 400 }
+      );
+    }
     const appPassword = decryptSecret(project.encryptedAppPassword);
 
     const info = await sendWithGmail({

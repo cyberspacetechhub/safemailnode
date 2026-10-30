@@ -112,6 +112,9 @@ export default function DashboardPage() {
   const [revealedKey, setRevealedKey] = useState<{ projectName: string; rawKey: string } | null>(null);
   const [revealKeyCopied, setRevealKeyCopied] = useState(false);
 
+  // Regenerate key confirm modal
+  const [confirmRegenProject, setConfirmRegenProject] = useState<MailProject | null>(null);
+
   const fetchDashboardData = useCallback(async () => {
     try {
       const meRes = await fetch(`/api/auth/me?t=${Date.now()}`, { cache: "no-store" });
@@ -223,13 +226,6 @@ export default function DashboardPage() {
   };
 
   const handleRegenerateKey = async (project: MailProject) => {
-    if (
-      !confirm(
-        `Regenerate API key for "${project.name}"? Any apps using the old key will stop working until updated.`
-      )
-    ) {
-      return;
-    }
     const res = await fetch(`/api/projects/${project._id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -264,7 +260,7 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to: testRecipient }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ success: false, message: "Unexpected server error" }));
       if (!res.ok || !data.success) {
         setFeedback({ type: "error", text: data.message || "Failed to send test email" });
       } else {
@@ -507,6 +503,11 @@ export default function DashboardPage() {
                         >
                           {proj.isActive ? "Active" : "Paused"}
                         </span>
+                        {!proj.apiKeyPrefix && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                            ⚠ Legacy — needs migration
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-slate-400 mt-1">
                         Gmail: <span className="text-slate-200 font-mono">{proj.gmailUser}</span> •
@@ -517,11 +518,12 @@ export default function DashboardPage() {
 
                     <div className="flex flex-wrap items-center gap-2">
                       <button
-                        disabled={user.isFrozen}
+                        disabled={user.isFrozen || !proj.apiKeyPrefix}
+                        title={!proj.apiKeyPrefix ? "Legacy project — ask an admin to run migration first" : undefined}
                         onClick={() =>
                           setTestingProjectId(testingProjectId === proj._id ? null : proj._id)
                         }
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 disabled:opacity-40 border border-emerald-500/30 text-emerald-300 text-xs font-medium transition"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 disabled:opacity-40 disabled:cursor-not-allowed border border-emerald-500/30 text-emerald-300 text-xs font-medium transition"
                       >
                         <Send className="w-3.5 h-3.5" />
                         Send Test Email
@@ -553,6 +555,10 @@ export default function DashboardPage() {
                         <span className="text-xs font-mono text-rose-400 flex items-center gap-1.5">
                           <Lock className="w-3.5 h-3.5" /> REVOKED — regenerate to issue a new key
                         </span>
+                      ) : !proj.apiKeyPrefix ? (
+                        <span className="text-xs font-mono text-amber-400 flex items-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5" /> Legacy project — contact admin to migrate API key
+                        </span>
                       ) : (
                         <code className="text-xs sm:text-sm font-mono text-emerald-400">
                           {proj.apiKeyPrefix}<span className="text-slate-500">••••••••••••••••••••••••••••••••</span>
@@ -561,7 +567,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleRegenerateKey(proj)}
+                        onClick={() => setConfirmRegenProject(proj)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs text-slate-300 hover:text-white transition"
                         title="Regenerate API Key — new key shown once"
                       >
@@ -1024,6 +1030,43 @@ MAIL_SERVICE_API_KEY=ms_live_your_project_api_key  # copied from the reveal moda
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Regenerate Key Confirm Modal */}
+      {confirmRegenProject && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-amber-500/30 p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                <RefreshCw className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Regenerate API Key?</h2>
+                <p className="text-xs text-slate-400 mt-0.5">This action cannot be undone.</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-300 mb-1">
+              You are about to regenerate the API key for <strong className="text-white">{confirmRegenProject.name}</strong>.
+            </p>
+            <p className="text-sm text-amber-400/90 mb-6">
+              Any apps currently using the old key will stop working immediately until you update them with the new key.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setConfirmRegenProject(null)}
+                className="flex-1 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { handleRegenerateKey(confirmRegenProject); setConfirmRegenProject(null); }}
+                className="flex-1 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-sm transition"
+              >
+                Yes, Regenerate Key
+              </button>
+            </div>
           </div>
         </div>
       )}
