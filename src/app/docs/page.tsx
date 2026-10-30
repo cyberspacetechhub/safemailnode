@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import Footer from "@/components/Footer";
+import MobileNav from "@/components/MobileNav";
 
 const ENV_SNIPPET = `MAIL_SERVICE_URL=https://yourdomain.com
 MAIL_SERVICE_API_KEY=ms_live_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`;
@@ -109,23 +110,32 @@ export default function DocsPage() {
       <header className="border-b border-slate-800/80 bg-[#090d16]/90 backdrop-blur sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <BrandLogo href="/" badge="DOCS" />
-          <div className="flex items-center gap-3">
-            <Link href="/" className="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white transition hidden sm:inline-block">
-              Home
+          <div className="flex items-center gap-2">
+            <Link href="/" className="hidden sm:inline-block px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white transition">Home</Link>
+            <Link href="/support" className="hidden sm:inline-flex px-3 py-1.5 text-xs font-medium rounded-lg bg-pink-500/10 border border-pink-500/30 text-pink-300 hover:bg-pink-500/20 items-center gap-1.5 transition">
+              <Heart className="w-3.5 h-3.5" />Support
             </Link>
-            <Link href="/support" className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-pink-500/10 border border-pink-500/30 text-pink-300 hover:bg-pink-500/20 inline-flex items-center gap-1.5 transition">
-              <Heart className="w-3.5 h-3.5" /><span className="hidden sm:inline">Support</span>
-            </Link>
-            <Link href="/dashboard" className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition">
-              Dashboard
-            </Link>
+            <Link href="/dashboard" className="hidden sm:inline-flex px-3.5 py-2 text-xs font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition">Dashboard</Link>
+            <MobileNav items={[
+              { label: "Contents", divider: true },
+              { label: "How it works", href: "#how-it-works" },
+              { label: "1. Create a project", href: "#setup" },
+              { label: "2. Environment variables", href: "#env" },
+              { label: "3. Email service helper", href: "#service" },
+              { label: "4. API reference", href: "#api" },
+              { label: "5. Error codes", href: "#errors" },
+              { label: "Navigation", divider: true },
+              { label: "Home", href: "/" },
+              { label: "Support", href: "/support", variant: "pink" },
+              { label: "Dashboard", href: "/dashboard" },
+            ]} />
           </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-6 py-12 grid lg:grid-cols-12 gap-10">
-        {/* Sidebar */}
-        <aside className="lg:col-span-3">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12 lg:grid lg:grid-cols-12 lg:gap-10">
+        {/* Sidebar — desktop only */}
+        <aside className="hidden lg:block lg:col-span-3">
           <div className="sticky top-24 space-y-6 p-5 rounded-2xl bg-slate-900/50 border border-slate-800/80">
             <div>
               <div className="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-3 flex items-center gap-1.5">
@@ -158,7 +168,7 @@ export default function DocsPage() {
         </aside>
 
         {/* Body */}
-        <div className="lg:col-span-9 space-y-14">
+        <div className="lg:col-span-9 min-w-0 space-y-14">
 
           {/* How it works */}
           <section id="how-it-works" className="space-y-4">
@@ -224,7 +234,9 @@ export default function DocsPage() {
               <CopyBtn id="env" code={ENV_SNIPPET} />
             </div>
             <p className="text-sm text-slate-400">Add these to your backend <code className="text-slate-200">.env</code> and your deployment environment (Vercel, Railway, Render, etc.):</p>
-            <pre className="p-5 rounded-2xl bg-slate-950 border border-slate-800 text-xs sm:text-sm font-mono text-emerald-300 overflow-x-auto leading-relaxed">{ENV_SNIPPET}</pre>
+            <div className="rounded-2xl bg-slate-950 border border-slate-800 overflow-x-auto">
+              <pre className="p-5 text-xs sm:text-sm font-mono text-emerald-300 leading-relaxed">{ENV_SNIPPET}</pre>
+            </div>
           </section>
 
           {/* Step 3: Service helper */}
@@ -254,17 +266,21 @@ export default function DocsPage() {
                 </span>
                 <CopyBtn id="service" code={lang === "ts" ? TS_SNIPPET : CJS_SNIPPET} />
               </div>
-              <pre className="p-5 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed">
-                {lang === "ts" ? TS_SNIPPET : CJS_SNIPPET}
-              </pre>
+              <div className="overflow-x-auto">
+                <pre className="p-5 text-xs font-mono text-slate-200 leading-relaxed">
+                  {lang === "ts" ? TS_SNIPPET : CJS_SNIPPET}
+                </pre>
+              </div>
             </div>
             <p className="text-sm text-slate-400 leading-relaxed">Usage example:</p>
-            <pre className="p-5 rounded-2xl bg-slate-950 border border-slate-800 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed">{`await sendEmail({
+            <div className="rounded-2xl bg-slate-950 border border-slate-800 overflow-x-auto">
+              <pre className="p-5 text-xs font-mono text-slate-200 leading-relaxed">{`await sendEmail({
   to: "user@example.com",
   subject: "Your order has shipped",
   fromName: "My Store",
   html: "<h2>Order #1234 shipped!</h2><p>Track it here: ...</p>",
 });`}</pre>
+            </div>
           </section>
 
           {/* Step 4: API reference */}
@@ -283,8 +299,8 @@ export default function DocsPage() {
             {/* Request body table */}
             <div className="rounded-2xl bg-slate-900/60 border border-slate-800 overflow-hidden">
               <div className="px-4 py-3 bg-slate-950/60 border-b border-slate-800 text-xs font-bold uppercase text-slate-300">Request body (JSON)</div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+              <div className="overflow-x-auto min-w-0">
+                <table className="min-w-[480px] w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-800 text-slate-400">
                       <th className="py-3 px-4">Field</th>
@@ -323,14 +339,18 @@ export default function DocsPage() {
                   <span className="text-xs font-mono text-slate-300 flex items-center gap-2"><Send className="w-3.5 h-3.5 text-emerald-400" />cURL</span>
                   <CopyBtn id="curl" code={CURL_SNIPPET} />
                 </div>
-                <pre className="p-4 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed">{CURL_SNIPPET}</pre>
+                <div className="overflow-x-auto">
+                  <pre className="p-4 text-xs font-mono text-slate-200 leading-relaxed">{CURL_SNIPPET}</pre>
+                </div>
               </div>
               <div className="rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden">
                 <div className="px-4 py-2.5 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
                   <span className="text-xs font-mono text-slate-300">Response</span>
                   <CopyBtn id="response" code={RESPONSE_SNIPPET} />
                 </div>
-                <pre className="p-4 text-xs font-mono text-slate-200 overflow-x-auto leading-relaxed">{RESPONSE_SNIPPET}</pre>
+                <div className="overflow-x-auto">
+                  <pre className="p-4 text-xs font-mono text-slate-200 leading-relaxed">{RESPONSE_SNIPPET}</pre>
+                </div>
               </div>
             </div>
           </section>

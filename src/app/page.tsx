@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import Footer from "@/components/Footer";
+import MobileNav from "@/components/MobileNav";
 
 export default function HomePage() {
   return (
@@ -22,33 +23,27 @@ export default function HomePage() {
       <header className="border-b border-slate-800/80 bg-[#090d16]/90 backdrop-blur sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <BrandLogo href="/" badge="Gmail SMTP API" />
-          <div className="flex items-center gap-3">
-            <Link
-              href="/docs"
-              className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 inline-flex items-center gap-1.5 transition"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
-              Docs
+          <div className="flex items-center gap-2">
+            {/* Desktop nav */}
+            <Link href="/docs" className="hidden sm:inline-flex px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 items-center gap-1.5 transition">
+              <BookOpen className="w-3.5 h-3.5 text-emerald-400" />Docs
             </Link>
-            <Link
-              href="/support"
-              className="px-3.5 py-1.5 text-xs font-medium rounded-lg bg-pink-500/10 border border-pink-500/30 text-pink-300 hover:bg-pink-500/20 inline-flex items-center gap-1.5 transition"
-            >
-              <Heart className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Support Project</span>
+            <Link href="/support" className="hidden sm:inline-flex px-3 py-1.5 text-xs font-medium rounded-lg bg-pink-500/10 border border-pink-500/30 text-pink-300 hover:bg-pink-500/20 items-center gap-1.5 transition">
+              <Heart className="w-3.5 h-3.5" />Support
             </Link>
-            <Link
-              href="/login"
-              className="px-3.5 py-2 text-sm font-medium text-slate-300 hover:text-white transition"
-            >
+            <Link href="/login" className="hidden sm:inline-flex px-3.5 py-2 text-sm font-medium text-slate-300 hover:text-white transition">
               Sign In
             </Link>
-            <Link
-              href="/register"
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition"
-            >
+            <Link href="/register" className="hidden sm:inline-flex px-3.5 py-2 text-sm font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition">
               Get API Key
             </Link>
+            {/* Mobile hamburger */}
+            <MobileNav items={[
+              { label: "Docs", href: "/docs", icon: <BookOpen className="w-4 h-4 text-emerald-400" /> },
+              { label: "Support", href: "/support", icon: <Heart className="w-4 h-4 text-pink-400" />, variant: "pink" },
+              { label: "Sign In", href: "/login" },
+              { label: "Get API Key", href: "/register" },
+            ]} />
           </div>
         </div>
       </header>

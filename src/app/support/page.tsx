@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import Footer from "@/components/Footer";
+import MobileNav from "@/components/MobileNav";
 
 interface BankAccount {
   bankName: string;
@@ -98,20 +99,16 @@ export default function SupportProjectPage() {
           <BrandLogo href="/" />
 
           <div className="flex items-center gap-3">
-            <Link
-              href="/docs"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs text-slate-200 transition"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
-              Docs
+            <Link href="/docs" className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs text-slate-200 transition">
+              <BookOpen className="w-3.5 h-3.5 text-emerald-400" />Docs
             </Link>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs text-slate-200 transition"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Dashboard
+            <Link href="/dashboard" className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs text-slate-200 transition">
+              <ArrowLeft className="w-3.5 h-3.5" />Dashboard
             </Link>
+            <MobileNav items={[
+              { label: "Docs", href: "/docs", icon: <BookOpen className="w-4 h-4 text-emerald-400" /> },
+              { label: "Dashboard", href: "/dashboard", icon: <ArrowLeft className="w-4 h-4" /> },
+            ]} />
           </div>
         </div>
       </header>
