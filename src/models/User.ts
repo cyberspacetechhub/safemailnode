@@ -6,12 +6,6 @@ export interface IUser extends Document {
   email: string;
   passwordHash: string;
   role: "user" | "admin";
-  /**
-   * Account status flags for production admin control:
-   * - isActive: false = suspended/deactivated
-   * - isFrozen: true  = user can log in, but all outgoing email API calls are paused
-   * - isLocked: true  = account is locked (cannot log in or send emails; e.g. security lock or brute-force)
-   */
   isActive: boolean;
   isFrozen: boolean;
   isLocked: boolean;
@@ -19,19 +13,19 @@ export interface IUser extends Document {
   failedLoginAttempts: number;
   lastLoginAt?: Date;
 
-  /**
-   * Email verification fields
-   */
   isEmailVerified: boolean;
   emailVerificationCode?: string;
   emailVerificationExpires?: Date;
 
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
+
+  /** ISO timestamp when the user accepted Terms of Service */
+  acceptedTermsAt?: Date;
+  /** Set when user requests account deletion — hard purge after 30 days */
+  deletedAt?: Date;
+
   plan: "free" | "pro" | "enterprise";
-  /**
-   * Admin-controlled toggle & limits:
-   * Default maxProjects is 2, default dailyQuota is 100.
-   * Admin can increase or decrease both per user.
-   */
   allowMultipleProjects: boolean;
   maxProjects: number;
   dailyQuota: number;
@@ -57,6 +51,12 @@ const UserSchema = new Schema<IUser>(
     emailVerificationCode: { type: String },
     emailVerificationExpires: { type: Date },
 
+    passwordResetToken: { type: String },
+    passwordResetExpires: { type: Date },
+
+    acceptedTermsAt: { type: Date },
+    deletedAt: { type: Date, index: true },
+
     plan: { type: String, enum: ["free", "pro", "enterprise"], default: "free" },
     allowMultipleProjects: { type: Boolean, default: true },
     maxProjects: { type: Number, default: 2, min: 1 },
@@ -65,11 +65,12 @@ const UserSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
-// Ensure Next.js hot-reload doesn't keep an older cached User schema missing new fields
 if (
   mongoose.models.User &&
   (!mongoose.models.User.schema.path("emailVerificationCode") ||
-    !mongoose.models.User.schema.path("isFrozen"))
+    !mongoose.models.User.schema.path("isFrozen") ||
+    !mongoose.models.User.schema.path("deletedAt") ||
+    !mongoose.models.User.schema.path("acceptedTermsAt"))
 ) {
   delete mongoose.models.User;
 }

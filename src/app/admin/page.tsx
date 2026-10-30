@@ -327,7 +327,7 @@ export default function AdminControlPage() {
   };
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout?scope=admin", { method: "POST" });
+    await fetch("/api/admin/auth/logout", { method: "POST" });
     router.push("/admin/login");
   };
 

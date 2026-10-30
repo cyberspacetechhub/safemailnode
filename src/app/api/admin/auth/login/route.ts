@@ -6,7 +6,7 @@ import { ADMIN_COOKIE_NAME, AUTH_COOKIE_NAME, signAuthToken } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
-  const rateLimitRes = enforceRateLimit(req, {
+  const rateLimitRes = await enforceRateLimit(req, {
     namespace: "admin:login",
     limit: 5,
     windowSeconds: 15 * 60,

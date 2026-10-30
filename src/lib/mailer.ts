@@ -131,3 +131,56 @@ export async function sendVerificationEmailToUser(
     return { sent: false, error: err?.message || "Failed to send verification email" };
   }
 }
+
+export async function sendPasswordResetEmail(
+  toEmail: string,
+  userName: string,
+  resetUrl: string
+): Promise<{ sent: boolean; error?: string }> {
+  try {
+    let gmailUser = process.env.SYSTEM_GMAIL_USER?.trim();
+    let appPassword = process.env.SYSTEM_GMAIL_APP_PASSWORD?.trim();
+    let fromName = "SafeMailNode Security";
+
+    const settings = await SystemSettings.collection.findOne({ key: "global" });
+    if (settings?.systemGmailUser && settings?.systemEncryptedAppPassword) {
+      gmailUser = settings.systemGmailUser;
+      appPassword = decryptSecret(settings.systemEncryptedAppPassword);
+      fromName = settings.systemFromName || "SafeMailNode Security";
+    }
+
+    if (!gmailUser || !appPassword) {
+      const admins = await User.find({ role: "admin", isActive: true }).select("_id");
+      if (admins.length > 0) {
+        const adminProject = await MailProject.findOne({
+          userId: { $in: admins.map((a) => a._id) },
+          isActive: true,
+        }).sort({ createdAt: 1 });
+        if (adminProject) {
+          gmailUser = adminProject.gmailUser;
+          appPassword = decryptSecret(adminProject.encryptedAppPassword);
+          fromName = adminProject.defaultFromName || "SafeMailNode Security";
+        }
+      }
+    }
+
+    if (!gmailUser || !appPassword) {
+      return { sent: false, error: "System mailer not configured." };
+    }
+
+    const html = `
+      <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 14px; background: #ffffff; color: #0f172a;">
+        <h2 style="margin-top: 0; color: #0f172a;">Reset your Safe<span style="color:#10b981;">Mail</span>Node password</h2>
+        <p style="color: #334155; line-height: 1.6;">Hi <strong>${userName}</strong>, click the button below to reset your password. This link expires in 30 minutes.</p>
+        <a href="${resetUrl}" style="display:inline-block;margin:20px 0;padding:12px 28px;background:#10b981;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">Reset Password</a>
+        <p style="font-size:13px;color:#64748b;">If you didn't request this, you can safely ignore this email.</p>
+      </div>
+    `;
+
+    await sendWithGmail({ gmailUser, appPassword, fromName, to: toEmail, subject: "Reset your SafeMailNode password", html });
+    return { sent: true };
+  } catch (err: any) {
+    console.error("[sendPasswordResetEmail] Error:", err);
+    return { sent: false, error: err?.message || "Failed to send reset email" };
+  }
+}

@@ -6,7 +6,7 @@ import { enforceRateLimit } from "@/lib/rateLimit";
 import { sendVerificationEmailToUser } from "@/lib/mailer";
 
 export async function POST(req: NextRequest) {
-  const rateLimitRes = enforceRateLimit(req, {
+  const rateLimitRes = await enforceRateLimit(req, {
     namespace: "auth:resend-verification",
     limit: 5,
     windowSeconds: 10 * 60,

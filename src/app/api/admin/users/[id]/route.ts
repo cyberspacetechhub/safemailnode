@@ -179,13 +179,15 @@ export async function DELETE(
   }
 
   await Promise.all([
-    MailProject.deleteMany({ userId: targetUser._id }),
-    EmailLog.deleteMany({ userId: targetUser._id }),
-    User.findByIdAndDelete(targetUser._id),
+    MailProject.updateMany({ userId: targetUser._id }, { $set: { isRevoked: true, isActive: false } }),
+    User.collection.updateOne(
+      { _id: targetUser._id },
+      { $set: { deletedAt: new Date(), isLocked: true, isActive: false, lockReason: "Account deleted by administrator." } }
+    ),
   ]);
 
   return NextResponse.json({
     success: true,
-    message: `Deleted user ${targetUser.email} along with all their projects and logs.`,
+    message: `Account ${targetUser.email} has been scheduled for deletion. Data will be purged within 30 days.`,
   });
 }

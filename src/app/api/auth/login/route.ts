@@ -6,7 +6,7 @@ import { AUTH_COOKIE_NAME, signAuthToken } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
-  const rateLimitRes = enforceRateLimit(req, {
+  const rateLimitRes = await enforceRateLimit(req, {
     namespace: "auth:login",
     limit: 8,
     windowSeconds: 15 * 60,
@@ -30,6 +30,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { success: false, message: "Invalid email or password." },
         { status: 401 }
+      );
+    }
+
+    if (user.deletedAt) {
+      return NextResponse.json(
+        { success: false, message: "This account has been deleted." },
+        { status: 403 }
       );
     }
 

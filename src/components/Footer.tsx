@@ -75,31 +75,26 @@ export default function Footer() {
             <ul className="space-y-2 text-sm">
               <li>
                 <Link
-                  href="/docs#quickstart"
+                  href="/docs#setup"
                   className="hover:text-emerald-400 transition inline-flex items-center gap-1.5"
                 >
                   <Terminal className="w-3.5 h-3.5 text-slate-500" />
-                  5-Minute Quick Start
+                  Quick Start
                 </Link>
               </li>
               <li>
-                <Link href="/docs#service-layer" className="hover:text-emerald-400 transition">
-                  TypeScript &amp; Node.js Service Layer
+                <Link href="/docs#service" className="hover:text-emerald-400 transition">
+                  TypeScript &amp; Node.js Helper
                 </Link>
               </li>
               <li>
-                <Link href="/docs#templates" className="hover:text-emerald-400 transition">
-                  HTML Email Template Architecture
+                <Link href="/docs#api" className="hover:text-emerald-400 transition">
+                  REST API Reference
                 </Link>
               </li>
               <li>
-                <Link href="/docs#workflows" className="hover:text-emerald-400 transition">
-                  Auth &amp; Transactional Triggers
-                </Link>
-              </li>
-              <li>
-                <Link href="/docs#api-reference" className="hover:text-emerald-400 transition">
-                  REST API &amp; Status Codes
+                <Link href="/docs#errors" className="hover:text-emerald-400 transition">
+                  Error Codes
                 </Link>
               </li>
             </ul>
@@ -122,6 +117,24 @@ export default function Footer() {
                 <Link href="/verify-email" className="hover:text-emerald-400 transition">
                   Verify Email
                 </Link>
+              </li>
+            </ul>
+          </div>
+
+          <div className="md:col-span-2 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200">Legal</h4>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link href="/privacy" className="hover:text-emerald-400 transition">Privacy Policy</Link>
+              </li>
+              <li>
+                <Link href="/terms" className="hover:text-emerald-400 transition">Terms of Service</Link>
+              </li>
+              <li>
+                <Link href="/acceptable-use" className="hover:text-emerald-400 transition">Acceptable Use</Link>
+              </li>
+              <li>
+                <Link href="/cookie-policy" className="hover:text-emerald-400 transition">Cookie Policy</Link>
               </li>
             </ul>
           </div>

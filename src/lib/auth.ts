@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 import { connectDB } from "./db";
 import { User, IUser } from "@/models/User";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev-jwt-secret-change-in-prod";
+export const JWT_SECRET = process.env.JWT_SECRET || "dev-jwt-secret-change-in-prod";
 export const AUTH_COOKIE_NAME = "mail_service_token";
 export const ADMIN_COOKIE_NAME = "mail_service_admin_token";
 

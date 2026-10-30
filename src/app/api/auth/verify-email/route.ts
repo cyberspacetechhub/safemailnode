@@ -4,7 +4,7 @@ import { User } from "@/models/User";
 import { enforceRateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
-  const rateLimitRes = enforceRateLimit(req, {
+  const rateLimitRes = await enforceRateLimit(req, {
     namespace: "auth:verify-email",
     limit: 10,
     windowSeconds: 15 * 60,

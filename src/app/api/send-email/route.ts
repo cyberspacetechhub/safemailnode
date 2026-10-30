@@ -3,7 +3,7 @@ import { connectDB } from "@/lib/db";
 import { MailProject } from "@/models/MailProject";
 import { User } from "@/models/User";
 import { EmailLog } from "@/models/EmailLog";
-import { decryptSecret } from "@/lib/crypto";
+import { decryptSecret, verifyApiKey } from "@/lib/crypto";
 import { sendWithGmail } from "@/lib/mailer";
 import { enforceRateLimit } from "@/lib/rateLimit";
 
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Rate limit per API key (or IP if missing) — 60 requests / minute
-    const rateLimitRes = enforceRateLimit(req, {
+    const rateLimitRes = await enforceRateLimit(req, {
       namespace: "api:send-email",
       limit: 60,
       windowSeconds: 60,
@@ -49,11 +49,29 @@ export async function POST(req: NextRequest) {
 
     await connectDB();
 
-    // 2. Look up project by API key
-    const project = await MailProject.findOne({ apiKey });
+    // 2. Look up project by API key prefix, then verify full key against stored hash
+    const prefix = apiKey.slice(0, 20) + "...";
+    const candidates = await MailProject.find({ apiKeyPrefix: prefix });
+
+    let project = null;
+    for (const candidate of candidates) {
+      const match = await verifyApiKey(apiKey, candidate.hashedApiKey);
+      if (match) {
+        project = candidate;
+        break;
+      }
+    }
+
     if (!project) {
       return NextResponse.json(
         { success: false, message: "Invalid API key." },
+        { status: 401, headers: corsHeaders }
+      );
+    }
+
+    if (project.isRevoked) {
+      return NextResponse.json(
+        { success: false, message: "This API key has been revoked." },
         { status: 401, headers: corsHeaders }
       );
     }
@@ -67,7 +85,7 @@ export async function POST(req: NextRequest) {
 
     // 3. Verify project owner account states (Active, Locked, Frozen, Email Verified, Quota)
     const user = await User.collection.findOne({ _id: project.userId });
-    if (!user || user.isActive === false) {
+    if (!user || user.isActive === false || user.deletedAt) {
       return NextResponse.json(
         { success: false, message: "Account suspended or deactivated." },
         { status: 403, headers: corsHeaders }

@@ -5,18 +5,20 @@ import { EmailLog } from "@/models/EmailLog";
 import { decryptSecret } from "@/lib/crypto";
 import { sendWithGmail } from "@/lib/mailer";
 import { enforceRateLimit } from "@/lib/rateLimit";
+import { connectDB } from "@/lib/db";
 
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const rateLimitRes = enforceRateLimit(req, {
+  const rateLimitRes = await enforceRateLimit(req, {
     namespace: "projects:test-email",
     limit: 5,
     windowSeconds: 5 * 60,
   });
   if (rateLimitRes) return rateLimitRes;
 
+  await connectDB();
   const user = await getCurrentUser(req);
   if (!user) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });

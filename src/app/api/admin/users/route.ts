@@ -29,11 +29,21 @@ export async function GET(req: NextRequest) {
     }
   );
 
-  const rawUsers = await User.collection
-    .find({})
-    .project({ passwordHash: 0 })
-    .sort({ createdAt: -1 })
-    .toArray();
+  const { searchParams } = new URL(req.url);
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10));
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "20", 10)));
+  const skip = (page - 1) * limit;
+
+  const [rawUsers, total] = await Promise.all([
+    User.collection
+      .find({})
+      .project({ passwordHash: 0 })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray(),
+    User.collection.countDocuments({}),
+  ]);
 
   const startOfDay = new Date();
   startOfDay.setUTCHours(0, 0, 0, 0);
@@ -73,6 +83,7 @@ export async function GET(req: NextRequest) {
     {
       success: true,
       data: enrichedUsers,
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
     },
     {
       headers: {

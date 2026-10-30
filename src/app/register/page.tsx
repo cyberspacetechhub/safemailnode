@@ -11,18 +11,23 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!acceptedTerms) {
+      setError("You must accept the Terms of Service and Privacy Policy to create an account.");
+      return;
+    }
     setError("");
     setLoading(true);
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, acceptedTerms }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -30,7 +35,11 @@ export default function RegisterPage() {
         setLoading(false);
         return;
       }
-      router.push("/verify-email");
+      if (data.data?.role === "admin") {
+        router.push("/dashboard");
+      } else {
+        router.push("/verify-email");
+      }
     } catch (err: any) {
       setError(err?.message || "Network error");
       setLoading(false);
@@ -82,7 +91,7 @@ export default function RegisterPage() {
 
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              Account Password (min. 6 chars)
+              Password (min. 6 characters)
             </label>
             <input
               type="password"
@@ -95,9 +104,48 @@ export default function RegisterPage() {
             />
           </div>
 
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <div className="relative mt-0.5 shrink-0">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="sr-only"
+              />
+              <div
+                className={`w-4 h-4 rounded border flex items-center justify-center transition ${
+                  acceptedTerms
+                    ? "bg-emerald-500 border-emerald-500"
+                    : "bg-slate-950 border-slate-700 group-hover:border-emerald-500/50"
+                }`}
+              >
+                {acceptedTerms && (
+                  <svg className="w-2.5 h-2.5 text-slate-950" fill="none" viewBox="0 0 10 8">
+                    <path d="M1 4l3 3 5-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </div>
+            </div>
+            <span className="text-xs text-slate-400 leading-relaxed">
+              I have read and agree to the{" "}
+              <Link href="/terms" target="_blank" className="text-emerald-400 hover:underline font-medium">
+                Terms of Service
+              </Link>
+              ,{" "}
+              <Link href="/privacy" target="_blank" className="text-emerald-400 hover:underline font-medium">
+                Privacy Policy
+              </Link>
+              , and{" "}
+              <Link href="/acceptable-use" target="_blank" className="text-emerald-400 hover:underline font-medium">
+                Acceptable Use Policy
+              </Link>
+              .
+            </span>
+          </label>
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !acceptedTerms}
             className="w-full py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-semibold text-sm flex items-center justify-center gap-2 transition"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}

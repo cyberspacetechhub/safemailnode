@@ -47,8 +47,9 @@ interface MailProject {
   gmailUser: string;
   defaultFromName: string;
   defaultReplyTo?: string;
-  apiKey: string;
+  apiKeyPrefix: string;
   isActive: boolean;
+  isRevoked: boolean;
   totalSent: number;
   totalFailed: number;
   lastUsedAt?: string;
@@ -75,6 +76,15 @@ export default function DashboardPage() {
   const [logs, setLogs] = useState<EmailLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"projects" | "logs" | "integrate">("projects");
+  const [logsPage, setLogsPage] = useState(1);
+  const [logsTotalPages, setLogsTotalPages] = useState(1);
+  const LOGS_LIMIT = 20;
+
+  // Delete account modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Modal state for creating / editing a project
   const [showModal, setShowModal] = useState(false);
@@ -95,8 +105,11 @@ export default function DashboardPage() {
     null
   );
 
-  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
   const [selectedSnippetProject, setSelectedSnippetProject] = useState<MailProject | null>(null);
+
+  // Show-once API key modal (after create or regenerate)
+  const [revealedKey, setRevealedKey] = useState<{ projectName: string; rawKey: string } | null>(null);
+  const [revealKeyCopied, setRevealKeyCopied] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -116,7 +129,7 @@ export default function DashboardPage() {
 
       const [projRes, logsRes] = await Promise.all([
         fetch(`/api/projects?t=${Date.now()}`, { cache: "no-store" }),
-        fetch(`/api/logs?t=${Date.now()}`, { cache: "no-store" }),
+        fetch(`/api/logs?page=${logsPage}&limit=${LOGS_LIMIT}&t=${Date.now()}`, { cache: "no-store" }),
       ]);
       const projJson = await projRes.json();
       const logsJson = await logsRes.json();
@@ -129,13 +142,14 @@ export default function DashboardPage() {
       }
       if (logsJson.success) {
         setLogs(logsJson.data);
+        setLogsTotalPages(logsJson.pagination?.totalPages ?? 1);
       }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }, [router, selectedSnippetProject]);
+  }, [router, selectedSnippetProject, logsPage]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -191,24 +205,20 @@ export default function DashboardPage() {
         return;
       }
       setShowModal(false);
-      setFeedback({
-        type: "success",
-        text: editingProject
-          ? `Updated "${data.data.name}" Gmail configuration.`
-          : `Created "${data.data.name}" and generated API key!`,
-      });
+      if (!editingProject && data.data?.rawApiKey) {
+        setRevealedKey({ projectName: data.data.name, rawKey: data.data.rawApiKey });
+      } else {
+        setFeedback({
+          type: "success",
+          text: `Updated "${data.data.name}" Gmail configuration.`,
+        });
+      }
       await fetchDashboardData();
     } catch (err: any) {
       setFormError(err?.message || "Network error");
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleCopyKey = (id: string, key: string) => {
-    navigator.clipboard.writeText(key);
-    setCopiedKeyId(id);
-    setTimeout(() => setCopiedKeyId(null), 2000);
   };
 
   const handleRegenerateKey = async (project: MailProject) => {
@@ -226,7 +236,11 @@ export default function DashboardPage() {
     });
     const data = await res.json();
     if (data.success) {
-      setFeedback({ type: "success", text: `Regenerated API key for "${project.name}".` });
+      if (data.newRawApiKey) {
+        setRevealedKey({ projectName: project.name, rawKey: data.newRawApiKey });
+      } else {
+        setFeedback({ type: "success", text: `Regenerated API key for "${project.name}".` });
+      }
       fetchDashboardData();
     }
   };
@@ -267,6 +281,29 @@ export default function DashboardPage() {
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
+  };
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError("");
+    setDeleteLoading(true);
+    try {
+      const res = await fetch("/api/auth/delete-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: deletePassword }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setDeleteError(data.message || "Failed to delete account.");
+        setDeleteLoading(false);
+        return;
+      }
+      router.push("/login?deleted=1");
+    } catch (err: any) {
+      setDeleteError(err?.message || "Network error.");
+      setDeleteLoading(false);
+    }
   };
 
   if (loading || !user) {
@@ -521,33 +558,24 @@ export default function DashboardPage() {
                       <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                         x-api-key:
                       </span>
-                      <code className="text-xs sm:text-sm font-mono text-emerald-400 select-all">
-                        {proj.apiKey}
-                      </code>
+                      {proj.isRevoked ? (
+                        <span className="text-xs font-mono text-rose-400 flex items-center gap-1.5">
+                          <Lock className="w-3.5 h-3.5" /> REVOKED — regenerate to issue a new key
+                        </span>
+                      ) : (
+                        <code className="text-xs sm:text-sm font-mono text-emerald-400">
+                          {proj.apiKeyPrefix}<span className="text-slate-500">••••••••••••••••••••••••••••••••</span>
+                        </code>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleCopyKey(proj._id, proj.apiKey)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs text-slate-200 transition"
-                      >
-                        {copiedKeyId === proj._id ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                            Copied
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5" />
-                            Copy Key
-                          </>
-                        )}
-                      </button>
-                      <button
                         onClick={() => handleRegenerateKey(proj)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs text-slate-400 hover:text-white transition"
-                        title="Regenerate API Key"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs text-slate-300 hover:text-white transition"
+                        title="Regenerate API Key — new key shown once"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
+                        Regenerate Key
                       </button>
                     </div>
                   </div>
@@ -639,7 +667,7 @@ export default function DashboardPage() {
                   </div>
                   <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-emerald-300 overflow-x-auto">
 {`MAIL_SERVICE_URL=${originUrl}
-MAIL_SERVICE_API_KEY=${selectedSnippetProject?.apiKey || "ms_live_your_project_api_key"}`}
+MAIL_SERVICE_API_KEY=ms_live_your_project_api_key  # copied from the reveal modal on creation`}
                   </pre>
                 </div>
 
@@ -688,7 +716,8 @@ MAIL_SERVICE_API_KEY=${selectedSnippetProject?.apiKey || "ms_live_your_project_a
 
         {/* TAB 3: EMAIL LOGS */}
         {activeTab === "logs" && (
-          <div className="rounded-2xl bg-slate-900/70 border border-slate-800 overflow-hidden">
+          <div className="space-y-4">
+            <div className="rounded-2xl bg-slate-900/70 border border-slate-800 overflow-hidden">
             {logs.length === 0 ? (
               <div className="p-12 text-center text-sm text-slate-400">
                 No emails sent yet. Use the &quot;Send Test Email&quot; button on your project to
@@ -742,6 +771,26 @@ MAIL_SERVICE_API_KEY=${selectedSnippetProject?.apiKey || "ms_live_your_project_a
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+            </div>
+            {logsTotalPages > 1 && (
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  onClick={() => setLogsPage((p) => Math.max(1, p - 1))}
+                  disabled={logsPage === 1}
+                  className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300 disabled:opacity-40 hover:bg-slate-800 transition"
+                >
+                  ← Prev
+                </button>
+                <span className="text-xs text-slate-400">Page {logsPage} of {logsTotalPages}</span>
+                <button
+                  onClick={() => setLogsPage((p) => Math.min(logsTotalPages, p + 1))}
+                  disabled={logsPage === logsTotalPages}
+                  className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-slate-300 disabled:opacity-40 hover:bg-slate-800 transition"
+                >
+                  Next →
+                </button>
               </div>
             )}
           </div>
@@ -862,6 +911,125 @@ MAIL_SERVICE_API_KEY=${selectedSnippetProject?.apiKey || "ms_live_your_project_a
                 >
                   {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   {editingProject ? "Save Changes" : "Save & Generate API Key"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Show-Once API Key Reveal Modal */}
+      {revealedKey && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-emerald-500/40 p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Your API Key — Copy It Now</h2>
+                <p className="text-xs text-slate-400">
+                  This is the only time <strong className="text-emerald-400">{revealedKey.projectName}</strong>&apos;s full key will be shown. It is not stored in plain text.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950 border border-emerald-500/30 mb-4">
+              <code className="text-sm font-mono text-emerald-400 break-all select-all">
+                {revealedKey.rawKey}
+              </code>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(revealedKey.rawKey);
+                  setRevealKeyCopied(true);
+                  setTimeout(() => setRevealKeyCopied(false), 2000);
+                }}
+                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm transition"
+              >
+                {revealKeyCopied ? (
+                  <><Check className="w-4 h-4" /> Copied!</>
+                ) : (
+                  <><Copy className="w-4 h-4" /> Copy API Key</>  
+                )}
+              </button>
+              <button
+                onClick={() => { setRevealedKey(null); setRevealKeyCopied(false); }}
+                className="px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition"
+              >
+                I&apos;ve saved it
+              </button>
+            </div>
+
+            <p className="text-[11px] text-amber-400/80 mt-4 text-center">
+              ⚠ Close this only after saving the key to your .env file. It cannot be recovered.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Danger Zone */}
+      <div className="max-w-6xl w-full mx-auto px-6 pb-8">
+        <div className="p-5 rounded-2xl border border-rose-500/20 bg-rose-500/5">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-semibold text-rose-300">Delete Account</h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Permanently delete your account and all data. A 30-day grace period applies before data is purged.
+              </p>
+            </div>
+            <button
+              onClick={() => { setShowDeleteModal(true); setDeletePassword(""); setDeleteError(""); }}
+              className="shrink-0 px-4 py-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-semibold transition"
+            >
+              Delete My Account
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-rose-500/30 p-6 shadow-2xl">
+            <h2 className="text-lg font-bold text-white mb-1">Delete your account</h2>
+            <p className="text-xs text-slate-400 mb-4">
+              This will immediately revoke all your API keys and projects. Your account data will be permanently purged after 30 days. This cannot be undone.
+            </p>
+            {deleteError && (
+              <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+                {deleteError}
+              </div>
+            )}
+            <form onSubmit={handleDeleteAccount} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">Confirm your password</label>
+                <input
+                  type="password"
+                  required
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:border-rose-500"
+                />
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={deleteLoading}
+                  className="flex-1 py-2.5 rounded-lg bg-rose-500 hover:bg-rose-400 disabled:opacity-50 text-white font-semibold text-sm flex items-center justify-center gap-2 transition"
+                >
+                  {deleteLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Delete Account
                 </button>
               </div>
             </form>

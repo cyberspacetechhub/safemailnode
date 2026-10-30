@@ -8,7 +8,7 @@ import { enforceRateLimit } from "@/lib/rateLimit";
 import { sendVerificationEmailToUser } from "@/lib/mailer";
 
 export async function POST(req: NextRequest) {
-  const rateLimitRes = enforceRateLimit(req, {
+  const rateLimitRes = await enforceRateLimit(req, {
     namespace: "auth:register",
     limit: 5,
     windowSeconds: 15 * 60,
@@ -16,11 +16,18 @@ export async function POST(req: NextRequest) {
   if (rateLimitRes) return rateLimitRes;
 
   try {
-    const { name, email, password } = await req.json();
+    const { name, email, password, acceptedTerms } = await req.json();
 
     if (!name || !email || !password) {
       return NextResponse.json(
         { success: false, message: "Name, email, and password are required." },
+        { status: 400 }
+      );
+    }
+
+    if (!acceptedTerms) {
+      return NextResponse.json(
+        { success: false, message: "You must accept the Terms of Service to register." },
         { status: 400 }
       );
     }
@@ -47,39 +54,43 @@ export async function POST(req: NextRequest) {
     const verificationCode = String(crypto.randomInt(100000, 999999));
     const verificationExpires = new Date(Date.now() + 30 * 60 * 1000); // 30 mins
 
-    // Regular user registration NEVER creates an admin.
+    // Regular user registration — role is always "user" unless email matches ADMIN_EMAIL env var.
     // Default limits: 2 projects, 100 daily emails (Admin can increase both per user).
+    const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase().trim();
+    const isAdminEmail = adminEmail && normalizedEmail === adminEmail;
+
     const user = await User.create({
       name: String(name).trim(),
       email: normalizedEmail,
       passwordHash,
-      role: "user",
-      plan: "free",
+      role: isAdminEmail ? "admin" : "user",
+      plan: isAdminEmail ? "enterprise" : "free",
       allowMultipleProjects: true,
-      maxProjects: 2,
-      dailyQuota: 100,
-      isEmailVerified: false,
-      emailVerificationCode: verificationCode,
-      emailVerificationExpires: verificationExpires,
+      maxProjects: isAdminEmail ? 50 : 2,
+      dailyQuota: isAdminEmail ? 2000 : 100,
+      isEmailVerified: isAdminEmail ? true : false,
+      emailVerificationCode: isAdminEmail ? undefined : verificationCode,
+      emailVerificationExpires: isAdminEmail ? undefined : verificationExpires,
+      acceptedTermsAt: new Date(),
       lastLoginAt: new Date(),
     });
 
     await User.collection.updateOne(
       { _id: user._id },
       {
-        $set: {
-          isEmailVerified: false,
-          emailVerificationCode: verificationCode,
-          emailVerificationExpires: verificationExpires,
-        },
+        $set: isAdminEmail
+          ? { isEmailVerified: true }
+          : {
+              isEmailVerified: false,
+              emailVerificationCode: verificationCode,
+              emailVerificationExpires: verificationExpires,
+            },
       }
     );
 
-    const mailResult = await sendVerificationEmailToUser(
-      user.email,
-      user.name,
-      verificationCode
-    );
+    const mailResult = isAdminEmail
+      ? { sent: false }
+      : await sendVerificationEmailToUser(user.email, user.name, verificationCode);
 
     const token = signAuthToken({
       userId: String(user._id),
@@ -90,9 +101,11 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json(
       {
         success: true,
-        requiresVerification: true,
+        requiresVerification: !isAdminEmail,
         emailDispatched: mailResult.sent,
-        message: mailResult.sent
+        message: isAdminEmail
+          ? "Admin account created and ready."
+          : mailResult.sent
           ? "Account created! Please check your email for your 6-digit verification code."
           : "Account created! Verification email is pending system mailer setup.",
         data: {

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   // Always read raw document directly from MongoDB collection to bypass any schema cache
   let rawUser = await User.collection.findOne({ _id: sessionUser._id });
-  if (!rawUser) {
+  if (!rawUser || rawUser.deletedAt) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
   }
 

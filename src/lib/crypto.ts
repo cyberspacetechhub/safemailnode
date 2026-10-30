@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 
 const ALGORITHM = "aes-256-gcm";
 
@@ -44,7 +45,26 @@ export function decryptSecret(cipherText: string): string {
 
 /**
  * Generates a unique API key prefixed with `ms_live_`
+ * Returns { rawKey, hashedKey, prefix }
  */
-export function generateApiKey(): string {
-  return `ms_live_${crypto.randomBytes(24).toString("hex")}`;
+export async function generateApiKey(): Promise<{
+  rawKey: string;
+  hashedKey: string;
+  prefix: string;
+}> {
+  const rawKey = `ms_live_${crypto.randomBytes(24).toString("hex")}`;
+  const hashedKey = await bcrypt.hash(rawKey, 10);
+  // prefix = first 20 chars of the raw key for display (e.g. "ms_live_a1b2c3d4e5f6")
+  const prefix = rawKey.slice(0, 20) + "...";
+  return { rawKey, hashedKey, prefix };
+}
+
+/**
+ * Verifies a raw API key against its stored bcrypt hash.
+ */
+export async function verifyApiKey(
+  rawKey: string,
+  hashedKey: string
+): Promise<boolean> {
+  return bcrypt.compare(rawKey, hashedKey);
 }

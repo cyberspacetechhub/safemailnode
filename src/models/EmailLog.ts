@@ -32,6 +32,8 @@ const EmailLogSchema = new Schema<IEmailLog>(
 );
 
 EmailLogSchema.index({ userId: 1, createdAt: -1 });
+// Auto-expire logs after 90 days (matches privacy policy)
+EmailLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 90 });
 
 export const EmailLog: Model<IEmailLog> =
   mongoose.models.EmailLog || mongoose.model<IEmailLog>("EmailLog", EmailLogSchema);

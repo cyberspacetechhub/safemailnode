@@ -8,8 +8,12 @@ export interface IMailProject extends Document {
   encryptedAppPassword: string;
   defaultFromName: string;
   defaultReplyTo?: string;
-  apiKey: string;
+  /** Bcrypt hash of the raw API key — used for lookup on every send-email request */
+  hashedApiKey: string;
+  /** Short prefix shown in the UI (e.g. ms_live_a1b2c3…) — NOT the full key */
+  apiKeyPrefix: string;
   isActive: boolean;
+  isRevoked: boolean;
   totalSent: number;
   totalFailed: number;
   lastUsedAt?: Date;
@@ -25,8 +29,10 @@ const MailProjectSchema = new Schema<IMailProject>(
     encryptedAppPassword: { type: String, required: true },
     defaultFromName: { type: String, required: true, trim: true, default: "Notifications" },
     defaultReplyTo: { type: String, trim: true },
-    apiKey: { type: String, required: true, unique: true, index: true },
+    hashedApiKey: { type: String, required: true, index: true },
+    apiKeyPrefix: { type: String, required: true },
     isActive: { type: Boolean, default: true },
+    isRevoked: { type: Boolean, default: false },
     totalSent: { type: Number, default: 0 },
     totalFailed: { type: Number, default: 0 },
     lastUsedAt: { type: Date },
