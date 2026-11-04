@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { connectDB } from "@/lib/db";
 import { User } from "@/models/User";
+import { Session } from "@/models/Session";
+import { AuditLog } from "@/models/AuditLog";
 import { AUTH_COOKIE_NAME, signAuthToken } from "@/lib/auth";
-import { enforceRateLimit } from "@/lib/rateLimit";
+import { enforceRateLimit, getClientIp } from "@/lib/rateLimit";
+import { sendLoginAlertEmail } from "@/lib/mailer";
 
 export async function POST(req: NextRequest) {
   const rateLimitRes = await enforceRateLimit(req, {
@@ -86,10 +90,31 @@ export async function POST(req: NextRequest) {
     user.lastLoginAt = new Date();
     await user.save();
 
+    const ip = getClientIp(req);
+    const ua = req.headers.get("user-agent") || "Unknown device";
+    const sessionId = crypto.randomBytes(32).toString("hex");
+
+    // Create session record
+    await Session.create({ sessionId, userId: user._id, ip, userAgent: ua, lastActiveAt: new Date() });
+
+    // Audit log
+    await AuditLog.create({ userId: user._id, action: "login", ip, userAgent: ua });
+
+    // Suspicious login alert — fire if user has logged in before (has lastLoginAt)
+    const prevIp = (user as any).lastLoginIp;
+    if (prevIp && prevIp !== ip) {
+      const time = new Date().toUTCString();
+      sendLoginAlertEmail(user.email, user.name, ip, ua, time);
+    }
+
+    // Store last login IP for next comparison
+    await User.collection.updateOne({ _id: user._id }, { $set: { lastLoginIp: ip } });
+
     const token = signAuthToken({
       userId: String(user._id),
       email: user.email,
       role: user.role,
+      sessionId,
     });
 
     const res = NextResponse.json({

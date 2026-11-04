@@ -5,7 +5,7 @@ import { connectDB } from "@/lib/db";
 import { User } from "@/models/User";
 import { AUTH_COOKIE_NAME, signAuthToken } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/rateLimit";
-import { sendVerificationEmailToUser } from "@/lib/mailer";
+import { sendVerificationEmailToUser, sendWelcomeEmail } from "@/lib/mailer";
 
 export async function POST(req: NextRequest) {
   const rateLimitRes = await enforceRateLimit(req, {
@@ -91,6 +91,10 @@ export async function POST(req: NextRequest) {
     const mailResult = isAdminEmail
       ? { sent: false }
       : await sendVerificationEmailToUser(user.email, user.name, verificationCode);
+
+    if (!isAdminEmail) {
+      sendWelcomeEmail(user.email, user.name);
+    }
 
     const token = signAuthToken({
       userId: String(user._id),

@@ -5,6 +5,7 @@ import { MailProject } from "@/models/MailProject";
 import { encryptSecret, generateApiKey } from "@/lib/crypto";
 import { enforceRateLimit } from "@/lib/rateLimit";
 import { connectDB } from "@/lib/db";
+import { sendProjectNotificationEmail } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
 
@@ -112,6 +113,8 @@ export async function POST(req: NextRequest) {
   const projectObj = project.toObject() as Record<string, any>;
   delete projectObj.encryptedAppPassword;
   delete projectObj.hashedApiKey;
+
+  sendProjectNotificationEmail(sessionUser.email, sessionUser.name, "created", project.name, project.gmailUser);
 
   // rawKey is returned ONCE here and never stored in plain text again
   return NextResponse.json(

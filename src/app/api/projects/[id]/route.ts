@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { MailProject } from "@/models/MailProject";
 import { encryptSecret, generateApiKey } from "@/lib/crypto";
 import { connectDB } from "@/lib/db";
+import { sendProjectNotificationEmail } from "@/lib/mailer";
 
 export async function GET(
   req: NextRequest,
@@ -70,6 +71,8 @@ export async function PATCH(
   const updated = project.toObject() as Record<string, any>;
   delete updated.encryptedAppPassword;
   delete updated.hashedApiKey;
+
+  sendProjectNotificationEmail(user.email, user.name, "updated", project.name, project.gmailUser);
 
   return NextResponse.json({
     success: true,

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 import { connectDB } from "./db";
 import { User, IUser } from "@/models/User";
+import { Session } from "@/models/Session";
 
 export const JWT_SECRET = process.env.JWT_SECRET || "dev-jwt-secret-change-in-prod";
 export const AUTH_COOKIE_NAME = "mail_service_token";
@@ -12,6 +13,7 @@ export interface JwtPayload {
   userId: string;
   email: string;
   role: "user" | "admin";
+  sessionId?: string;
 }
 
 export function signAuthToken(payload: JwtPayload): string {
@@ -55,6 +57,14 @@ export async function getCurrentUser(req?: NextRequest): Promise<IUser | null> {
   await connectDB();
   const user = await User.findById(decoded.userId);
   if (!user || !user.isActive || user.isLocked) return null;
+
+  // Validate session is still active (if sessionId present in token)
+  if (decoded.sessionId) {
+    const session = await Session.findOne({ sessionId: decoded.sessionId, userId: user._id });
+    if (!session) return null;
+    // Touch lastActiveAt without blocking
+    Session.updateOne({ sessionId: decoded.sessionId }, { lastActiveAt: new Date() }).exec();
+  }
 
   return user;
 }

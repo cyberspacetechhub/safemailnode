@@ -14,6 +14,11 @@ export default function VerifyEmailPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  // Change email state
+  const [showChangeEmail, setShowChangeEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [changingEmail, setChangingEmail] = useState(false);
+
   useEffect(() => {
     fetch("/api/auth/me", { cache: "no-store" })
       .then((res) => {
@@ -74,6 +79,34 @@ export default function VerifyEmailPage() {
       setError(err?.message || "Failed to resend code");
     } finally {
       setResending(false);
+    }
+  };
+
+  const handleChangeEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    setChangingEmail(true);
+    try {
+      const res = await fetch("/api/auth/change-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.message || "Failed to change email");
+      } else {
+        setUserEmail(data.email);
+        setNewEmail("");
+        setShowChangeEmail(false);
+        setCode("");
+        setMessage(data.message);
+      }
+    } catch (err: any) {
+      setError(err?.message || "Network error");
+    } finally {
+      setChangingEmail(false);
     }
   };
 
@@ -157,6 +190,46 @@ export default function VerifyEmailPage() {
             Resend Code
           </button>
         </div>
+
+        <div className="mt-3 text-center">
+          <button
+            onClick={() => { setShowChangeEmail((v) => !v); setError(""); setMessage(""); }}
+            className="text-xs text-slate-500 hover:text-slate-300 underline underline-offset-2 transition"
+          >
+            Wrong email address? Change it
+          </button>
+        </div>
+
+        {showChangeEmail && (
+          <form onSubmit={handleChangeEmail} className="mt-4 p-4 rounded-xl bg-slate-950 border border-slate-700 space-y-3">
+            <p className="text-xs text-slate-400">Enter the correct email address. A new verification code will be sent to it.</p>
+            <input
+              type="email"
+              required
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="correct@email.com"
+              className="w-full px-3.5 py-2 rounded-lg bg-slate-900 border border-slate-800 text-sm text-white focus:outline-none focus:border-emerald-500"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowChangeEmail(false); setNewEmail(""); }}
+                className="flex-1 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={changingEmail}
+                className="flex-1 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-semibold text-xs flex items-center justify-center gap-1.5 transition"
+              >
+                {changingEmail && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                Update & Resend Code
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

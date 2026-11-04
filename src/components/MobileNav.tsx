@@ -12,6 +12,7 @@ export interface NavItem {
   variant?: "default" | "danger" | "pink" | "amber";
   external?: boolean;
   divider?: boolean;
+  subtitle?: string;
 }
 
 interface MobileNavProps {
@@ -51,8 +52,9 @@ export default function MobileNav({ items }: MobileNavProps) {
         <div className="absolute right-0 top-full mt-2 w-52 rounded-xl bg-slate-900 border border-slate-800 shadow-2xl z-50 py-1 overflow-hidden">
           {items.map((item, i) =>
             item.divider ? (
-              <div key={i} className="px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 border-t border-slate-800 mt-1">
-                {item.label}
+              <div key={i} className="px-4 pt-2 pb-1 border-t border-slate-800 mt-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{item.label}</p>
+                {item.subtitle && <p className="text-[11px] text-slate-600 truncate">{item.subtitle}</p>}
               </div>
             ) : item.href ? (
               <Link
