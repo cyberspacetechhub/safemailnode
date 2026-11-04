@@ -6,6 +6,27 @@ import { generateApiKey } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
 
+// GET /api/admin/migrate-projects — drops the legacy apiKey_1 unique index if it exists
+export async function GET(req: NextRequest) {
+  const admin = await getCurrentAdmin(req);
+  if (!admin) {
+    return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+  }
+
+  await connectDB();
+
+  try {
+    await MailProject.collection.dropIndex("apiKey_1");
+    return NextResponse.json({ success: true, message: "Dropped legacy apiKey_1 index." });
+  } catch (err: any) {
+    // index_not_found is fine — already gone
+    if (err?.codeName === "IndexNotFound" || err?.code === 27) {
+      return NextResponse.json({ success: true, message: "Index apiKey_1 does not exist — nothing to drop." });
+    }
+    return NextResponse.json({ success: false, message: err?.message }, { status: 500 });
+  }
+}
+
 // POST /api/admin/migrate-projects
 // Finds legacy projects missing hashedApiKey, generates new keys, returns raw keys ONCE.
 export async function POST(req: NextRequest) {
