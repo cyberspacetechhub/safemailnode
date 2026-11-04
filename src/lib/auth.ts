@@ -60,10 +60,13 @@ export async function getCurrentUser(req?: NextRequest): Promise<IUser | null> {
 
   // Validate session is still active (if sessionId present in token)
   if (decoded.sessionId) {
-    const session = await Session.findOne({ sessionId: decoded.sessionId, userId: user._id });
-    if (!session) return null;
-    // Touch lastActiveAt without blocking
-    Session.updateOne({ sessionId: decoded.sessionId }, { lastActiveAt: new Date() }).exec();
+    try {
+      const session = await Session.findOne({ sessionId: decoded.sessionId, userId: user._id });
+      if (!session) return null;
+      Session.updateOne({ sessionId: decoded.sessionId }, { lastActiveAt: new Date() }).exec();
+    } catch {
+      // Session collection unavailable — degrade gracefully
+    }
   }
 
   return user;

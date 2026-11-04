@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  try {
   const rateLimitRes = await enforceRateLimit(req, {
     namespace: "projects:create",
     limit: 10,
@@ -116,9 +117,12 @@ export async function POST(req: NextRequest) {
 
   sendProjectNotificationEmail(sessionUser.email, sessionUser.name, "created", project.name, project.gmailUser);
 
-  // rawKey is returned ONCE here and never stored in plain text again
   return NextResponse.json(
     { success: true, data: { ...projectObj, rawApiKey: rawKey } },
     { status: 201 }
   );
+  } catch (err: any) {
+    console.error("[POST /api/projects] Error:", err);
+    return NextResponse.json({ success: false, message: err?.message || "Internal server error" }, { status: 500 });
+  }
 }
